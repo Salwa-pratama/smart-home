@@ -138,29 +138,133 @@ function ControlCard({ title, endpoint, color }: ControlCardProps) {
 }
 
 function VoicePanel() {
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [error, setError] = useState("");
+  const [response, setResponse] = useState("");
+
+  const speak = (text: string, callback?: () => void) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "id-ID";
+    utterance.pitch = 1.2;
+    utterance.rate = 1;
+
+    // coba cari suara cewek
+    const voices = window.speechSynthesis.getVoices();
+    const femaleVoice = voices.find(
+      (v) => v.lang === "id-ID" && v.name.toLowerCase().includes("female"),
+    );
+    if (femaleVoice) utterance.voice = femaleVoice;
+
+    utterance.onend = () => callback && callback();
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const sendToESP = async (text: string) => {
+    try {
+      const res = await fetch("http://192.168.1.13:80/voice", {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain",
+        },
+        body: text,
+      });
+
+      const result = await res.text();
+      setResponse(result);
+
+      // bacain respon ESP
+      speak(result);
+    } catch {
+      setError("❌ Gagal mengirim perintah ke ESP32");
+    }
+  };
+
+  const startListening = () => {
+    setError("");
+    setResponse("");
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setError("❌ Browser tidak mendukung Voice Recognition");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "id-ID";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+
+    recognition.onstart = () => {
+      setListening(true);
+      setTranscript("");
+    };
+
+    recognition.onresult = (event: any) => {
+      const text = event.results[0][0].transcript;
+      setTranscript(text);
+
+      // Alexa ngomong dulu, baru fetch
+      speak("Oke bang, permintaan akan segera diproses", () => {
+        setTimeout(() => {
+          sendToESP(text);
+        }, 800); // delay 0.8 detik
+      });
+    };
+
+    recognition.onerror = () => {
+      setError("❌ Gagal mendeteksi suara");
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognition.start();
+  };
+
   return (
     <div className="flex flex-col items-center justify-center gap-6 text-center">
+      {/* Mic */}
       <div className="w-40 h-40 rounded-full bg-sky-600/20 flex items-center justify-center">
-        <div className="w-24 h-24 rounded-full bg-sky-600 animate-pulse" />
+        <div
+          className={`w-24 h-24 rounded-full bg-sky-600 ${
+            listening ? "animate-pulse" : ""
+          }`}
+        />
       </div>
 
       <h2 className="text-xl font-semibold">Voice Control</h2>
-      <p className="text-slate-400 max-w-sm">
-        Tap the microphone and say commands like:
-        <br />
-        <span className="italic text-sky-400">"Turn on living room light"</span>
-      </p>
 
       <button
-        className="bg-sky-600 px-8 py-3 rounded-full text-lg font-medium opacity-60 cursor-not-allowed"
-        disabled
+        onClick={startListening}
+        disabled={listening}
+        className={`px-8 py-3 rounded-full text-lg font-medium transition
+          ${
+            listening
+              ? "bg-slate-600 cursor-not-allowed"
+              : "bg-sky-600 hover:opacity-90"
+          }`}
       >
-        🎤 Listening...
+        🎤 {listening ? "Listening..." : "Start Listening"}
       </button>
 
-      <p className="text-xs text-slate-500">
-        Voice logic will be implemented later
-      </p>
+      {transcript && (
+        <div className="bg-slate-800 p-4 rounded-lg max-w-md">
+          <p className="text-slate-400 text-xs mb-1">Kamu bilang:</p>
+          <p className="text-sky-400 font-medium">"{transcript}"</p>
+        </div>
+      )}
+
+      {response && (
+        <p className="text-emerald-400 text-sm font-medium">{response}</p>
+      )}
+
+      {error && <p className="text-red-400 text-sm">{error}</p>}
     </div>
   );
 }
