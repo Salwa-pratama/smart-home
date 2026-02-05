@@ -176,7 +176,9 @@ function VoicePanel() {
       // bacain respon ESP
       speak(result);
     } catch (err) {
-      setError(JSON.stringify(err));
+      if (err != null) {
+        setError("Gagal mengirim ke Sistem");
+      }
     }
   };
 
