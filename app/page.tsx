@@ -171,15 +171,15 @@ function VoicePanel() {
       });
 
       const result = await res.text();
-      setResponse(result);
 
-      // bacain respon ESP
-      speak(result);
-    } catch (err) {
-      if (err) {
-        setError("Gagal mengirim ke Sistem");
+      if (!res.ok) {
+        setError(result || "Perintah gagal diproses");
+        return;
       }
-    }
+
+      setResponse(result);
+      speak(result);
+    } catch (e) {}
   };
 
   const startListening = () => {
@@ -210,10 +210,10 @@ function VoicePanel() {
       setTranscript(text);
 
       // Alexa ngomong dulu, baru fetch
-      speak("Oke bang, permintaan akan segera diproses", () => {
+      speak("oke laksanakan", () => {
         setTimeout(() => {
           sendToESP(text);
-        }, 800); // delay 0.8 detik
+        }, 200); // delay 0.8 detik
       });
     };
 
