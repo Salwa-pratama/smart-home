@@ -1,65 +1,166 @@
-import Image from "next/image";
+"use client";
+
+import { useState, ReactNode } from "react";
+
+type TabType = "control" | "voice";
 
 export default function Home() {
+  const [tab, setTab] = useState<TabType>("control");
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="min-h-screen bg-linear-to-br from-slate-900 to-slate-800 text-white">
+      {/* Header */}
+      <header className="p-5 text-center">
+        <h1 className="text-2xl font-bold">Smart Home ESP32</h1>
+        <p className="text-slate-400 text-sm">
+          Control your home devices easily
+        </p>
+      </header>
+
+      {/* Tabs */}
+      <div className="flex justify-center gap-2 px-4">
+        <TabButton active={tab === "control"} onClick={() => setTab("control")}>
+          Control
+        </TabButton>
+        <TabButton active={tab === "voice"} onClick={() => setTab("voice")}>
+          Voice
+        </TabButton>
+      </div>
+
+      {/* Content */}
+      <main className="p-6 max-w-4xl mx-auto">
+        {tab === "control" ? <ControlPanel /> : <VoicePanel />}
       </main>
+    </div>
+  );
+}
+
+/* ===================== TYPES ===================== */
+
+type TabButtonProps = {
+  children: ReactNode;
+  active: boolean;
+  onClick: () => void;
+};
+
+type ControlCardProps = {
+  title: string;
+  endpoint: string;
+  color: string;
+};
+
+/* ===================== COMPONENTS ===================== */
+
+function TabButton({ children, active, onClick }: TabButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-5 py-2 rounded-full text-sm transition-all
+        ${active ? "bg-sky-600 shadow-lg" : "bg-slate-700 hover:bg-slate-600"} cursor-pointer`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ControlPanel() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <ControlCard
+        title="All Lamp"
+        endpoint="http://192.168.1.13:80/all-on"
+        color="bg-emerald-600"
+      />
+      <ControlCard
+        title="Ruang Tamu"
+        endpoint="http://192.168.1.13:80/ruang-tamu"
+        color="bg-sky-600"
+      />
+      <ControlCard
+        title="Kamar"
+        endpoint="http://192.168.1.13:80/kamar"
+        color="bg-violet-600"
+      />
+      <ControlCard
+        title="Dapur"
+        endpoint="http://192.168.1.13:80/dapur"
+        color="bg-orange-500"
+      />
+    </div>
+  );
+}
+
+function ControlCard({ title, endpoint, color }: ControlCardProps) {
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const handleToggle = async () => {
+    try {
+      setLoading(true);
+      setStatus(null);
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to hit ESP32");
+      }
+
+      const text = await res.text();
+      setStatus(text);
+    } catch (err) {
+      setStatus("❌ ESP32 tidak merespon");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-slate-800 rounded-xl p-5 shadow-md hover:shadow-xl transition">
+      <h2 className="text-lg font-semibold mb-1">{title}</h2>
+      <p className="text-slate-400 text-xs mb-3 break-all">{endpoint}</p>
+
+      <button
+        onClick={handleToggle}
+        disabled={loading}
+        className={`${color} w-full py-3 rounded-lg font-medium transition
+          ${loading ? "opacity-50 cursor-not-allowed" : "hover:opacity-90"}`}
+      >
+        {loading ? "Processing..." : "Toggle"}
+      </button>
+
+      {status && (
+        <p className="mt-3 text-sm text-center text-slate-300">{status}</p>
+      )}
+    </div>
+  );
+}
+
+function VoicePanel() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-6 text-center">
+      <div className="w-40 h-40 rounded-full bg-sky-600/20 flex items-center justify-center">
+        <div className="w-24 h-24 rounded-full bg-sky-600 animate-pulse" />
+      </div>
+
+      <h2 className="text-xl font-semibold">Voice Control</h2>
+      <p className="text-slate-400 max-w-sm">
+        Tap the microphone and say commands like:
+        <br />
+        <span className="italic text-sky-400">"Turn on living room light"</span>
+      </p>
+
+      <button
+        className="bg-sky-600 px-8 py-3 rounded-full text-lg font-medium opacity-60 cursor-not-allowed"
+        disabled
+      >
+        🎤 Listening...
+      </button>
+
+      <p className="text-xs text-slate-500">
+        Voice logic will be implemented later
+      </p>
     </div>
   );
 }
