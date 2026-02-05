@@ -175,8 +175,8 @@ function VoicePanel() {
 
       // bacain respon ESP
       speak(result);
-    } catch {
-      setError("❌ Gagal mengirim perintah ke ESP32");
+    } catch (err) {
+      setError(JSON.stringify(err));
     }
   };
 
